@@ -1,11 +1,7 @@
 defmodule StmAgent.Transaction do
-  defmodule Id do
-    defstruct id: nil
-
-    def new() do
-      %StmAgent.Transaction.Id{id: UUID.uuid4()}
-    end
-  end
+  @moduledoc """
+  Used for transactions with StmAgent.
+  """
 
   def transaction(fun, retries \\ :infinity) do
     tx = StmAgent.Transaction.Id.new()
@@ -38,9 +34,21 @@ defmodule StmAgent.Transaction do
         {:ok, result}
     end
   end
+
+  defmodule Id do
+    @moduledoc false
+    defstruct id: nil
+
+    def new() do
+      %StmAgent.Transaction.Id{id: UUID.uuid4()}
+    end
+  end
 end
 
 defmodule StmAgent.TransactionMonitor do
+  # Keeps track of which StmAgents a transaction has accessed and handles committing and rolling back of those
+  # StmAgents.
+  @moduledoc false
   def start_link(tx) do
     GenServer.start_link(__MODULE__, tx, name: {:global, tx})
   end

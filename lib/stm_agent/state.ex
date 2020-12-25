@@ -1,4 +1,5 @@
 defmodule StmAgent.State do
+  @moduledoc false
   defstruct data: nil,
             version: 1,
             tx_data: %{},

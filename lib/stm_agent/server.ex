@@ -1,4 +1,5 @@
 defmodule StmAgent.Server do
+  @moduledoc false
   use GenServer
 
   def init(fun) do

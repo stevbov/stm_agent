@@ -1,4 +1,10 @@
 defmodule StmAgent do
+  @moduledoc """
+  Similar to Agent, but access and modification of state is controlled with Software Transactional Memory (STM).
+
+  Most commonly used inside the StmAgent.Transaction.transaction function.
+  """
+
   def start_link(fun, options \\ []) do
     GenServer.start_link(StmAgent.Server, fun, options)
   end
