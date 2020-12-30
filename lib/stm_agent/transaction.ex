@@ -131,9 +131,9 @@ defmodule StmAgent.TransactionMonitor do
     {:reply, :ok, %{state | on_commit: new_on_commit}}
   end
 
-  def handle_call(:abort, _from, %{tx: tx, accessed_pids: accessed_pids, on_commit: on_commit}) do
+  def handle_call(:abort, _from, %{tx: tx, accessed_pids: accessed_pids, on_abort: on_abort}) do
     Enum.each(accessed_pids, fn pid -> :ok = StmAgent.abort(pid, tx) end)
-    Enum.each(on_commit, fn fun -> fun.() end)
+    Enum.each(on_abort, fn fun -> fun.() end)
 
     {:reply, :ok, %TransactionMonitor{tx: tx}}
   end
