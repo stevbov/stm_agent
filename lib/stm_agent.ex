@@ -5,6 +5,35 @@ defmodule StmAgent do
   Most commonly used inside the StmAgent.Transaction.transaction function.
   """
 
+  def child_spec(arg) do
+    %{
+      id: StmAgent,
+      start: {StmAgent, :start_link, [arg]}
+    }
+  end
+
+  defmacro __using__(opts) do
+    quote location: :keep, bind_quoted: [opts: opts] do
+      unless Module.has_attribute?(__MODULE__, :doc) do
+        @doc """
+        Returns a specification to start this module under a supervisor.
+        See `Supervisor`.
+        """
+      end
+
+      def child_spec(arg) do
+        default = %{
+          id: __MODULE__,
+          start: {__MODULE__, :start_link, [arg]}
+        }
+
+        Supervisor.child_spec(default, unquote(Macro.escape(opts)))
+      end
+
+      defoverridable child_spec: 1
+    end
+  end
+
   def start_link(fun, options \\ []) do
     GenServer.start_link(StmAgent.Server, fun, options)
   end
