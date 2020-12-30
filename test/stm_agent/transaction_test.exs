@@ -232,11 +232,16 @@ defmodule StmAgent.TransactionTest do
 
   describe "callbacks" do
     test "when committing", context do
+      {:ok, verify_counter} = Agent.start_link(fn -> 0 end)
       {:ok, abort_counter} = Agent.start_link(fn -> 0 end)
       {:ok, commit_counter} = Agent.start_link(fn -> 0 end)
 
       {:ok, _} =
         StmAgent.Transaction.transaction(fn tx ->
+          StmAgent.Transaction.on_verify(tx, fn ->
+            Agent.update(verify_counter, fn v -> v + 1 end)
+          end)
+
           StmAgent.Transaction.on_commit(tx, fn ->
             Agent.update(commit_counter, fn v -> v + 1 end)
           end)
@@ -249,10 +254,12 @@ defmodule StmAgent.TransactionTest do
         end)
 
       assert 1 = Agent.get(commit_counter, fn v -> v end)
+      assert 1 = Agent.get(verify_counter, fn v -> v end)
       assert 0 = Agent.get(abort_counter, fn v -> v end)
     end
 
     test "when aborting", context do
+      {:ok, verify_counter} = Agent.start_link(fn -> 0 end)
       {:ok, abort_counter} = Agent.start_link(fn -> 0 end)
       {:ok, commit_counter} = Agent.start_link(fn -> 0 end)
 
@@ -263,6 +270,10 @@ defmodule StmAgent.TransactionTest do
       :aborted =
         StmAgent.Transaction.transaction(
           fn tx ->
+            StmAgent.Transaction.on_verify(tx, fn ->
+              Agent.update(verify_counter, fn v -> v + 1 end)
+            end)
+
             StmAgent.Transaction.on_commit(tx, fn ->
               Agent.update(commit_counter, fn v -> v + 1 end)
             end)
@@ -277,6 +288,7 @@ defmodule StmAgent.TransactionTest do
         )
 
       assert 0 = Agent.get(commit_counter, fn v -> v end)
+      assert 0 = Agent.get(verify_counter, fn v -> v end)
       assert 2 = Agent.get(abort_counter, fn v -> v end)
     end
   end
