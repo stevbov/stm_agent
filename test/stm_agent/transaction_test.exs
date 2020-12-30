@@ -231,7 +231,7 @@ defmodule StmAgent.TransactionTest do
   end
 
   describe "callbacks" do
-    test "when committing", context do
+    test "committed transaction calls on_verify, on_commit", context do
       {:ok, verify_counter} = Agent.start_link(fn -> 0 end)
       {:ok, abort_counter} = Agent.start_link(fn -> 0 end)
       {:ok, commit_counter} = Agent.start_link(fn -> 0 end)
@@ -258,7 +258,7 @@ defmodule StmAgent.TransactionTest do
       assert 0 = Agent.get(abort_counter, fn v -> v end)
     end
 
-    test "when aborting", context do
+    test "abort calls on_abort", context do
       {:ok, verify_counter} = Agent.start_link(fn -> 0 end)
       {:ok, abort_counter} = Agent.start_link(fn -> 0 end)
       {:ok, commit_counter} = Agent.start_link(fn -> 0 end)
@@ -292,7 +292,7 @@ defmodule StmAgent.TransactionTest do
       assert 2 = Agent.get(abort_counter, fn v -> v end)
     end
 
-    test "when raising AbortError" do
+    test "raising AbortError calls on_abort" do
       {:ok, verify_counter} = Agent.start_link(fn -> 0 end)
       {:ok, abort_counter} = Agent.start_link(fn -> 0 end)
       {:ok, commit_counter} = Agent.start_link(fn -> 0 end)
@@ -315,6 +315,96 @@ defmodule StmAgent.TransactionTest do
         end,
         1
       )
+
+      assert 0 = Agent.get(commit_counter, fn v -> v end)
+      assert 0 = Agent.get(verify_counter, fn v -> v end)
+      assert 1 = Agent.get(abort_counter, fn v -> v end)
+    end
+
+    test "raise calls on_abort" do
+      {:ok, verify_counter} = Agent.start_link(fn -> 0 end)
+      {:ok, abort_counter} = Agent.start_link(fn -> 0 end)
+      {:ok, commit_counter} = Agent.start_link(fn -> 0 end)
+
+      try do
+        StmAgent.Transaction.transaction(fn tx ->
+          StmAgent.Transaction.on_verify(tx, fn ->
+            Agent.update(verify_counter, fn v -> v + 1 end)
+          end)
+
+          StmAgent.Transaction.on_commit(tx, fn ->
+            Agent.update(commit_counter, fn v -> v + 1 end)
+          end)
+
+          StmAgent.Transaction.on_abort(tx, fn ->
+            Agent.update(abort_counter, fn v -> v + 1 end)
+          end)
+
+          raise "error"
+        end)
+      rescue
+        _ -> :ok
+      end
+
+      assert 0 = Agent.get(commit_counter, fn v -> v end)
+      assert 0 = Agent.get(verify_counter, fn v -> v end)
+      assert 1 = Agent.get(abort_counter, fn v -> v end)
+    end
+
+    test "throw calls on_abort" do
+      {:ok, verify_counter} = Agent.start_link(fn -> 0 end)
+      {:ok, abort_counter} = Agent.start_link(fn -> 0 end)
+      {:ok, commit_counter} = Agent.start_link(fn -> 0 end)
+
+      try do
+        StmAgent.Transaction.transaction(fn tx ->
+          StmAgent.Transaction.on_verify(tx, fn ->
+            Agent.update(verify_counter, fn v -> v + 1 end)
+          end)
+
+          StmAgent.Transaction.on_commit(tx, fn ->
+            Agent.update(commit_counter, fn v -> v + 1 end)
+          end)
+
+          StmAgent.Transaction.on_abort(tx, fn ->
+            Agent.update(abort_counter, fn v -> v + 1 end)
+          end)
+
+          throw("error")
+        end)
+      catch
+        _ -> :ok
+      end
+
+      assert 0 = Agent.get(commit_counter, fn v -> v end)
+      assert 0 = Agent.get(verify_counter, fn v -> v end)
+      assert 1 = Agent.get(abort_counter, fn v -> v end)
+    end
+
+    test "exit calls on_abort" do
+      {:ok, verify_counter} = Agent.start_link(fn -> 0 end)
+      {:ok, abort_counter} = Agent.start_link(fn -> 0 end)
+      {:ok, commit_counter} = Agent.start_link(fn -> 0 end)
+
+      try do
+        StmAgent.Transaction.transaction(fn tx ->
+          StmAgent.Transaction.on_verify(tx, fn ->
+            Agent.update(verify_counter, fn v -> v + 1 end)
+          end)
+
+          StmAgent.Transaction.on_commit(tx, fn ->
+            Agent.update(commit_counter, fn v -> v + 1 end)
+          end)
+
+          StmAgent.Transaction.on_abort(tx, fn ->
+            Agent.update(abort_counter, fn v -> v + 1 end)
+          end)
+
+          exit("error")
+        end)
+      catch
+        :exit, _ -> :ok
+      end
 
       assert 0 = Agent.get(commit_counter, fn v -> v end)
       assert 0 = Agent.get(verify_counter, fn v -> v end)
