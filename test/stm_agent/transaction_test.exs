@@ -231,24 +231,31 @@ defmodule StmAgent.TransactionTest do
   end
 
   describe "callbacks" do
-    test "on_commit called", context do
-      {:ok, counting_agent} = Agent.start_link(fn -> 0 end)
+    test "when committing", context do
+      {:ok, abort_counter} = Agent.start_link(fn -> 0 end)
+      {:ok, commit_counter} = Agent.start_link(fn -> 0 end)
 
       {:ok, _} =
         StmAgent.Transaction.transaction(fn tx ->
-          StmAgent.Transaction.on_commit(
-            fn -> Agent.update(counting_agent, fn v -> v + 1 end) end,
-            tx
-          )
+          StmAgent.Transaction.on_commit(tx, fn ->
+            Agent.update(commit_counter, fn v -> v + 1 end)
+          end)
+
+          StmAgent.Transaction.on_abort(tx, fn ->
+            Agent.update(abort_counter, fn v -> v + 1 end)
+          end)
 
           :ok = StmAgent.update(context.agent, fn v -> v + 5 end, tx)
         end)
 
-      assert 1 = Agent.get(counting_agent, fn v -> v end)
+      assert 1 = Agent.get(commit_counter, fn v -> v end)
+      assert 0 = Agent.get(abort_counter, fn v -> v end)
     end
 
-    test "on_abort called when aborting", context do
-      {:ok, counting_agent} = Agent.start_link(fn -> 0 end)
+    test "when aborting", context do
+      {:ok, abort_counter} = Agent.start_link(fn -> 0 end)
+      {:ok, commit_counter} = Agent.start_link(fn -> 0 end)
+
       tx2 = StmAgent.Transaction.Id.new()
       :ok = StmAgent.update(context.agent, fn v -> v + 1 end, tx2)
       :ok = StmAgent.verify(context.agent, tx2)
@@ -256,17 +263,21 @@ defmodule StmAgent.TransactionTest do
       :aborted =
         StmAgent.Transaction.transaction(
           fn tx ->
-            StmAgent.Transaction.on_abort(
-              fn -> Agent.update(counting_agent, fn v -> v + 1 end) end,
-              tx
-            )
+            StmAgent.Transaction.on_commit(tx, fn ->
+              Agent.update(commit_counter, fn v -> v + 1 end)
+            end)
+
+            StmAgent.Transaction.on_abort(tx, fn ->
+              Agent.update(abort_counter, fn v -> v + 1 end)
+            end)
 
             :abort = StmAgent.update(context.agent, fn v -> v + 5 end, tx)
           end,
           2
         )
 
-      assert 2 = Agent.get(counting_agent, fn v -> v end)
+      assert 0 = Agent.get(commit_counter, fn v -> v end)
+      assert 2 = Agent.get(abort_counter, fn v -> v end)
     end
   end
 

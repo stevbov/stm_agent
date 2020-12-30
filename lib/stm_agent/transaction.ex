@@ -17,11 +17,11 @@ defmodule StmAgent.Transaction do
     end
   end
 
-  def on_commit(fun, tx) do
+  def on_commit(tx, fun) do
     StmAgent.TransactionMonitor.on_commit(tx, fun)
   end
 
-  def on_abort(fun, tx) do
+  def on_abort(tx, fun) do
     StmAgent.TransactionMonitor.on_abort(tx, fun)
   end
 
