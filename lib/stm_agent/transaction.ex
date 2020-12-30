@@ -17,6 +17,14 @@ defmodule StmAgent.Transaction do
     end
   end
 
+  def on_commit(fun, tx) do
+    StmAgent.TransactionMonitor.on_commit(tx, fun)
+  end
+
+  def on_abort(fun, tx) do
+    StmAgent.TransactionMonitor.on_abort(tx, fun)
+  end
+
   defp transaction(fun, retries, tx) do
     result = fun.(tx)
 
@@ -69,19 +77,37 @@ defmodule StmAgent.TransactionMonitor do
     GenServer.call({:global, tx}, :commit)
   end
 
+  def on_commit(tx, fun) do
+    GenServer.call({:global, tx}, {:on_commit, fun})
+  end
+
+  def on_abort(tx, fun) do
+    GenServer.call({:global, tx}, {:on_abort, fun})
+  end
+
   # GenServer callbacks
   def init(tx) do
-    {:ok, {tx, []}}
+    {:ok, {tx, [], [], []}}
   end
 
-  def handle_call(:abort, _from, {tx, accessed_pids}) do
-    accessed_pids
-    |> Enum.each(fn pid -> :ok = StmAgent.abort(pid, tx) end)
-
-    {:reply, :ok, {tx, []}}
+  def handle_call({:on_abort, fun}, _from, {tx, accessed_pids, on_commit, on_abort}) do
+    new_on_abort = [fun | on_abort]
+    {:reply, :ok, {tx, accessed_pids, on_commit, new_on_abort}}
   end
 
-  def handle_call(:commit, _from, {tx, accessed_pids}) do
+  def handle_call({:on_commit, fun}, _from, {tx, accessed_pids, on_commit, on_abort}) do
+    new_on_commit = [fun | on_commit]
+    {:reply, :ok, {tx, accessed_pids, new_on_commit, on_abort}}
+  end
+
+  def handle_call(:abort, _from, {tx, accessed_pids, on_commit, _on_abort}) do
+    Enum.each(accessed_pids, fn pid -> :ok = StmAgent.abort(pid, tx) end)
+    Enum.each(on_commit, fn fun -> fun.() end)
+
+    {:reply, :ok, {tx, [], [], []}}
+  end
+
+  def handle_call(:commit, _from, {tx, accessed_pids, on_commit, on_abort}) do
     verify_results =
       Enum.map(accessed_pids, fn pid ->
         try do
@@ -97,17 +123,21 @@ defmodule StmAgent.TransactionMonitor do
       verify_results
       |> Enum.each(fn {_result, pid} -> :ok = StmAgent.commit(pid, tx) end)
 
-      {:reply, :ok, {tx, []}}
+      Enum.each(on_commit, fn fun -> fun.() end)
+
+      {:reply, :ok, {tx, [], [], []}}
     else
       verify_results
       |> Enum.filter(fn {result, _pid} -> result != :error end)
       |> Enum.each(fn {_result, pid} -> :ok = StmAgent.abort(pid, tx) end)
 
-      {:reply, :aborted, {tx, []}}
+      Enum.each(on_abort, fn fun -> fun.() end)
+
+      {:reply, :aborted, {tx, [], [], []}}
     end
   end
 
-  def handle_cast({:accessed, pid}, {tx, accessed_pids}) do
+  def handle_cast({:accessed, pid}, {tx, accessed_pids, on_commit, on_abort}) do
     new_accessed_pids =
       if Enum.member?(accessed_pids, pid) do
         accessed_pids
@@ -115,14 +145,15 @@ defmodule StmAgent.TransactionMonitor do
         [pid | accessed_pids]
       end
 
-    {:noreply, {tx, new_accessed_pids}}
+    {:noreply, {tx, new_accessed_pids, on_commit, on_abort}}
   end
 
-  def terminate(_reason, {tx, accessed_pids}) do
+  def terminate(_reason, {tx, accessed_pids, _on_commit, on_abort}) do
     accessed_pids
     |> Enum.each(fn pid -> :ok = StmAgent.abort(pid, tx) end)
+
+    Enum.each(on_abort, fn fun -> fun.() end)
 
     :ok
   end
 end
-

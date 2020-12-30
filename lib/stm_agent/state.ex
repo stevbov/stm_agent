@@ -157,4 +157,3 @@ defmodule StmAgent.State do
     end
   end
 end
-

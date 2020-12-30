@@ -230,6 +230,46 @@ defmodule StmAgent.TransactionTest do
     assert 16 = StmAgent.dirty_get(context.agent, fn v -> v end)
   end
 
+  describe "callbacks" do
+    test "on_commit called", context do
+      {:ok, counting_agent} = Agent.start_link(fn -> 0 end)
+
+      {:ok, _} =
+        StmAgent.Transaction.transaction(fn tx ->
+          StmAgent.Transaction.on_commit(
+            fn -> Agent.update(counting_agent, fn v -> v + 1 end) end,
+            tx
+          )
+
+          :ok = StmAgent.update(context.agent, fn v -> v + 5 end, tx)
+        end)
+
+      assert 1 = Agent.get(counting_agent, fn v -> v end)
+    end
+
+    test "on_abort called when aborting", context do
+      {:ok, counting_agent} = Agent.start_link(fn -> 0 end)
+      tx2 = StmAgent.Transaction.Id.new()
+      :ok = StmAgent.update(context.agent, fn v -> v + 1 end, tx2)
+      :ok = StmAgent.verify(context.agent, tx2)
+
+      :aborted =
+        StmAgent.Transaction.transaction(
+          fn tx ->
+            StmAgent.Transaction.on_abort(
+              fn -> Agent.update(counting_agent, fn v -> v + 1 end) end,
+              tx
+            )
+
+            :abort = StmAgent.update(context.agent, fn v -> v + 5 end, tx)
+          end,
+          2
+        )
+
+      assert 2 = Agent.get(counting_agent, fn v -> v end)
+    end
+  end
+
   describe "retry" do
     test ":aborted when hits retry limit", context do
       {:ok, counting_agent} = Agent.start_link(fn -> 0 end)

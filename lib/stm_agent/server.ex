@@ -104,4 +104,3 @@ defmodule StmAgent.Server do
     {:noreply, new_state}
   end
 end
-
