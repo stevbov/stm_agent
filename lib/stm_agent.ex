@@ -46,28 +46,28 @@ defmodule StmAgent do
     GenServer.stop(pid, reason, timeout)
   end
 
-  def get(pid, fun, tx) do
+  def get(pid, tx, fun) do
     StmAgent.TransactionMonitor.accessed(tx, pid)
-    GenServer.call(pid, {:get, fun, tx})
+    GenServer.call(pid, {:get, tx, fun})
   end
 
-  def update(pid, fun, tx) do
+  def update(pid, tx, fun) do
     StmAgent.TransactionMonitor.accessed(tx, pid)
-    GenServer.call(pid, {:update, fun, tx})
+    GenServer.call(pid, {:update, tx, fun})
   end
 
-  def get_and_update(pid, fun, tx) do
+  def get_and_update(pid, tx, fun) do
     StmAgent.TransactionMonitor.accessed(tx, pid)
-    GenServer.call(pid, {:get_and_update, fun, tx})
+    GenServer.call(pid, {:get_and_update, tx, fun})
   end
 
-  def cast(pid, fun, tx) do
+  def cast(pid, tx, fun) do
     StmAgent.TransactionMonitor.accessed(tx, pid)
-    GenServer.cast(pid, {:cast, fun, tx})
+    GenServer.cast(pid, {:cast, tx, fun})
   end
 
-  def get!(pid, fun, tx) do
-    case get(pid, fun, tx) do
+  def get!(pid, tx, fun) do
+    case get(pid, tx, fun) do
       {:ok, value} ->
         value
 
@@ -76,8 +76,8 @@ defmodule StmAgent do
     end
   end
 
-  def update!(pid, fun, tx) do
-    case update(pid, fun, tx) do
+  def update!(pid, tx, fun) do
+    case update(pid, tx, fun) do
       :ok ->
         :ok
 
@@ -86,8 +86,8 @@ defmodule StmAgent do
     end
   end
 
-  def get_and_update!(pid, fun, tx) do
-    case get_and_update(pid, fun, tx) do
+  def get_and_update!(pid, tx, fun) do
+    case get_and_update(pid, tx, fun) do
       {:ok, value} ->
         value
 

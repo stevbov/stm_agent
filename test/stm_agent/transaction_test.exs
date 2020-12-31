@@ -24,7 +24,7 @@ defmodule StmAgent.TransactionTest do
   test "basic", context do
     {:ok, _} =
       StmAgent.Transaction.transaction(fn tx ->
-        StmAgent.update(context.agent, fn v -> v + 1 end, tx)
+        StmAgent.update(context.agent, tx, fn v -> v + 1 end)
       end)
 
     assert 2 = StmAgent.dirty_get(context.agent, fn v -> v end)
@@ -37,7 +37,7 @@ defmodule StmAgent.TransactionTest do
   test "with reply", context do
     {:ok, 13} =
       StmAgent.Transaction.transaction(fn tx ->
-        StmAgent.update(context.agent, fn v -> v + 1 end, tx)
+        StmAgent.update(context.agent, tx, fn v -> v + 1 end)
         13
       end)
 
@@ -51,10 +51,10 @@ defmodule StmAgent.TransactionTest do
   test "multiple updates", context do
     {:ok, _} =
       StmAgent.Transaction.transaction(fn tx ->
-        StmAgent.update(context.agent, fn v -> v + 1 end, tx)
-        StmAgent.update(context.agent2, fn v -> v + 5 end, tx)
-        StmAgent.update(context.agent, fn v -> v + 3 end, tx)
-        StmAgent.update(context.agent2, fn v -> v + 7 end, tx)
+        StmAgent.update(context.agent, tx, fn v -> v + 1 end)
+        StmAgent.update(context.agent2, tx, fn v -> v + 5 end)
+        StmAgent.update(context.agent, tx, fn v -> v + 3 end)
+        StmAgent.update(context.agent2, tx, fn v -> v + 7 end)
       end)
 
     assert 5 = StmAgent.dirty_get(context.agent, fn v -> v end)
@@ -73,7 +73,7 @@ defmodule StmAgent.TransactionTest do
   test "manual abort", context do
     {:ok, _} =
       StmAgent.Transaction.transaction(fn tx ->
-        StmAgent.update(context.agent, fn v -> v + 1 end, tx)
+        StmAgent.update(context.agent, tx, fn v -> v + 1 end)
         StmAgent.abort(context.agent, tx)
       end)
 
@@ -87,7 +87,7 @@ defmodule StmAgent.TransactionTest do
   test "raise cleans out transaction info", context do
     try do
       StmAgent.Transaction.transaction(fn tx ->
-        StmAgent.update(context.agent, fn v -> v + 1 end, tx)
+        StmAgent.update(context.agent, tx, fn v -> v + 1 end)
         raise "abort"
       end)
     rescue
@@ -104,7 +104,7 @@ defmodule StmAgent.TransactionTest do
   test "throw cleans out transaction info", context do
     try do
       StmAgent.Transaction.transaction(fn tx ->
-        StmAgent.update(context.agent, fn v -> v + 1 end, tx)
+        StmAgent.update(context.agent, tx, fn v -> v + 1 end)
         throw("abort")
       end)
     catch
@@ -121,7 +121,7 @@ defmodule StmAgent.TransactionTest do
   test "exit cleans out transaction info", context do
     try do
       StmAgent.Transaction.transaction(fn tx ->
-        StmAgent.update(context.agent, fn v -> v + 1 end, tx)
+        StmAgent.update(context.agent, tx, fn v -> v + 1 end)
         exit("abort")
       end)
     catch
@@ -138,8 +138,8 @@ defmodule StmAgent.TransactionTest do
   test "multiple agents aborted", context do
     try do
       StmAgent.Transaction.transaction(fn tx ->
-        StmAgent.update(context.agent, fn v -> v + 1 end, tx)
-        StmAgent.update(context.agent2, fn v -> v + 7 end, tx)
+        StmAgent.update(context.agent, tx, fn v -> v + 1 end)
+        StmAgent.update(context.agent2, tx, fn v -> v + 7 end)
         raise "abort"
       end)
     rescue
@@ -161,13 +161,13 @@ defmodule StmAgent.TransactionTest do
 
   test "failed update, causes abort", context do
     tx2 = StmAgent.Transaction.Id.new()
-    :ok = StmAgent.update(context.agent, fn v -> v + 1 end, tx2)
+    :ok = StmAgent.update(context.agent, tx2, fn v -> v + 1 end)
     :ok = StmAgent.verify(context.agent, tx2)
 
     assert :aborted =
              StmAgent.Transaction.transaction(
                fn tx ->
-                 :abort = StmAgent.update(context.agent, fn v -> v + 1 end, tx)
+                 :abort = StmAgent.update(context.agent, tx, fn v -> v + 1 end)
                end,
                1
              )
@@ -180,13 +180,13 @@ defmodule StmAgent.TransactionTest do
 
   test "failed update, outer tx commits, we exit transaction(): aborts", context do
     tx2 = StmAgent.Transaction.Id.new()
-    :ok = StmAgent.update(context.agent, fn v -> v + 1 end, tx2)
+    :ok = StmAgent.update(context.agent, tx2, fn v -> v + 1 end)
     :ok = StmAgent.verify(context.agent, tx2)
 
     assert :aborted =
              StmAgent.Transaction.transaction(
                fn tx ->
-                 :abort = StmAgent.update(context.agent, fn v -> v + 5 end, tx)
+                 :abort = StmAgent.update(context.agent, tx, fn v -> v + 5 end)
                  :ok = StmAgent.commit(context.agent, tx2)
                end,
                1
@@ -203,8 +203,8 @@ defmodule StmAgent.TransactionTest do
     assert :aborted =
              StmAgent.Transaction.transaction(
                fn tx ->
-                 StmAgent.update(context.agent, fn v -> v + 1 end, tx)
-                 StmAgent.update(context.agent2, fn v -> v + 7 end, tx)
+                 StmAgent.update(context.agent, tx, fn v -> v + 1 end)
+                 StmAgent.update(context.agent2, tx, fn v -> v + 7 end)
                  StmAgent.stop(context.agent)
                end,
                1
@@ -221,7 +221,7 @@ defmodule StmAgent.TransactionTest do
     assert :aborted =
              StmAgent.Transaction.transaction(
                fn tx ->
-                 :ok = StmAgent.update(context.agent, fn v -> v + 5 end, tx)
+                 :ok = StmAgent.update(context.agent, tx, fn v -> v + 5 end)
                  StmAgent.dirty_update(context.agent, fn v -> v + 3 end)
                end,
                5
@@ -250,7 +250,7 @@ defmodule StmAgent.TransactionTest do
             Agent.update(abort_counter, fn v -> v + 1 end)
           end)
 
-          :ok = StmAgent.update(context.agent, fn v -> v + 5 end, tx)
+          :ok = StmAgent.update(context.agent, tx, fn v -> v + 5 end)
         end)
 
       assert 1 = Agent.get(commit_counter, fn v -> v end)
@@ -264,7 +264,7 @@ defmodule StmAgent.TransactionTest do
       {:ok, commit_counter} = Agent.start_link(fn -> 0 end)
 
       tx2 = StmAgent.Transaction.Id.new()
-      :ok = StmAgent.update(context.agent, fn v -> v + 1 end, tx2)
+      :ok = StmAgent.update(context.agent, tx2, fn v -> v + 1 end)
       :ok = StmAgent.verify(context.agent, tx2)
 
       :aborted =
@@ -282,7 +282,7 @@ defmodule StmAgent.TransactionTest do
               Agent.update(abort_counter, fn v -> v + 1 end)
             end)
 
-            :abort = StmAgent.update(context.agent, fn v -> v + 5 end, tx)
+            :abort = StmAgent.update(context.agent, tx, fn v -> v + 5 end)
           end,
           2
         )
@@ -422,7 +422,7 @@ defmodule StmAgent.TransactionTest do
                StmAgent.Transaction.transaction(
                  fn tx ->
                    Agent.update(counting_agent, fn v -> v + 1 end)
-                   StmAgent.update(context.agent, fn v -> v + 1 end, tx)
+                   StmAgent.update(context.agent, tx, fn v -> v + 1 end)
                  end,
                  5
                )
@@ -446,7 +446,7 @@ defmodule StmAgent.TransactionTest do
                    StmAgent.commit(context.agent, tx2)
                  end
 
-                 StmAgent.update(context.agent, fn v -> v + 1 end, tx)
+                 StmAgent.update(context.agent, tx, fn v -> v + 1 end)
                end)
 
       assert 2 = StmAgent.dirty_get(context.agent, fn v -> v end)

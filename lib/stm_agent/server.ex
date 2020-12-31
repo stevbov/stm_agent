@@ -6,8 +6,8 @@ defmodule StmAgent.Server do
     {:ok, StmAgent.State.new(fun.())}
   end
 
-  def handle_call({:get, fun, tx}, _from, state) do
-    case StmAgent.State.get(state, fun, tx) do
+  def handle_call({:get, tx, fun}, _from, state) do
+    case StmAgent.State.get(state, tx, fun) do
       {:ok, reply, state} ->
         {:reply, {:ok, reply}, state}
 
@@ -16,8 +16,8 @@ defmodule StmAgent.Server do
     end
   end
 
-  def handle_call({:update, fun, tx}, _from, state) do
-    case StmAgent.State.update(state, fun, tx) do
+  def handle_call({:update, tx, fun}, _from, state) do
+    case StmAgent.State.update(state, tx, fun) do
       {:ok, state} ->
         {:reply, :ok, state}
 
@@ -26,8 +26,8 @@ defmodule StmAgent.Server do
     end
   end
 
-  def handle_call({:get_and_update, fun, tx}, _from, state) do
-    case StmAgent.State.get_and_update(state, fun, tx) do
+  def handle_call({:get_and_update, tx, fun}, _from, state) do
+    case StmAgent.State.get_and_update(state, tx, fun) do
       {:ok, reply, state} ->
         {:reply, {:ok, reply}, state}
 
@@ -88,8 +88,8 @@ defmodule StmAgent.Server do
     end
   end
 
-  def handle_cast({:cast, fun, tx}, state) do
-    case StmAgent.State.update(state, fun, tx) do
+  def handle_cast({:cast, tx, fun}, state) do
+    case StmAgent.State.update(state, tx, fun) do
       {:ok, new_state} ->
         {:noreply, new_state}
 

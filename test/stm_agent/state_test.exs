@@ -6,7 +6,7 @@ defmodule StmAgent.StateTest do
       state = StmAgent.State.new(1)
       tx = StmAgent.Transaction.Id.new()
 
-      {:ok, 11, state} = StmAgent.State.get(state, fn v -> v + 10 end, tx)
+      {:ok, 11, state} = StmAgent.State.get(state, tx, fn v -> v + 10 end)
 
       assert Map.get(state.tx_version, tx) == 1
     end
@@ -16,10 +16,10 @@ defmodule StmAgent.StateTest do
       tx1 = StmAgent.Transaction.Id.new()
       tx2 = StmAgent.Transaction.Id.new()
 
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx2)
+      {:ok, state} = StmAgent.State.update(state, tx2, fn v -> v + 10 end)
       {:ok, state} = StmAgent.State.verify(state, tx2)
 
-      assert {:abort, state} = StmAgent.State.get(state, fn v -> v + 10 end, tx1)
+      assert {:abort, state} = StmAgent.State.get(state, tx1, fn v -> v + 10 end)
       assert state.version == Map.get(state.tx_version, tx1)
     end
 
@@ -28,11 +28,11 @@ defmodule StmAgent.StateTest do
       tx1 = StmAgent.Transaction.Id.new()
       tx2 = StmAgent.Transaction.Id.new()
 
-      {:ok, _value, state} = StmAgent.State.get(state, fn v -> v + 10 end, tx1)
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx2)
+      {:ok, _value, state} = StmAgent.State.get(state, tx1, fn v -> v + 10 end)
+      {:ok, state} = StmAgent.State.update(state, tx2, fn v -> v + 10 end)
       {:ok, state} = StmAgent.State.verify(state, tx2)
 
-      assert {:abort, state} = StmAgent.State.get(state, fn v -> v + 10 end, tx1)
+      assert {:abort, state} = StmAgent.State.get(state, tx1, fn v -> v + 10 end)
       assert state.version == Map.get(state.tx_version, tx1)
     end
 
@@ -41,11 +41,11 @@ defmodule StmAgent.StateTest do
       tx1 = StmAgent.Transaction.Id.new()
       tx2 = StmAgent.Transaction.Id.new()
 
-      {:ok, _value, state} = StmAgent.State.get(state, fn v -> v + 10 end, tx1)
-      {:ok, _value, state} = StmAgent.State.get(state, fn v -> v + 10 end, tx2)
+      {:ok, _value, state} = StmAgent.State.get(state, tx1, fn v -> v + 10 end)
+      {:ok, _value, state} = StmAgent.State.get(state, tx2, fn v -> v + 10 end)
       {:ok, state} = StmAgent.State.verify(state, tx2)
 
-      assert {:ok, _value, _state} = StmAgent.State.get(state, fn v -> v + 10 end, tx1)
+      assert {:ok, _value, _state} = StmAgent.State.get(state, tx1, fn v -> v + 10 end)
     end
 
     test ":abort when StmAgent.AbortError raised" do
@@ -53,7 +53,7 @@ defmodule StmAgent.StateTest do
       tx = StmAgent.Transaction.Id.new()
 
       assert {:abort, _state} =
-               StmAgent.State.get(state, fn _v -> raise StmAgent.AbortError end, tx)
+               StmAgent.State.get(state, tx, fn _v -> raise StmAgent.AbortError end)
     end
   end
 
@@ -62,7 +62,7 @@ defmodule StmAgent.StateTest do
       state = StmAgent.State.new(1)
       tx = StmAgent.Transaction.Id.new()
 
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx)
+      {:ok, state} = StmAgent.State.update(state, tx, fn v -> v + 10 end)
 
       assert state.data == 1
       assert Map.get(state.tx_version, tx) == 1
@@ -74,7 +74,7 @@ defmodule StmAgent.StateTest do
       tx = StmAgent.Transaction.Id.new()
 
       assert {:abort, _state} =
-               StmAgent.State.update(state, fn _v -> raise StmAgent.AbortError end, tx)
+               StmAgent.State.update(state, tx, fn _v -> raise StmAgent.AbortError end)
     end
   end
 
@@ -83,7 +83,7 @@ defmodule StmAgent.StateTest do
       state = StmAgent.State.new(1)
       tx = StmAgent.Transaction.Id.new()
 
-      {:ok, 4, state} = StmAgent.State.get_and_update(state, fn v -> {v + 3, v + 10} end, tx)
+      {:ok, 4, state} = StmAgent.State.get_and_update(state, tx, fn v -> {v + 3, v + 10} end)
 
       assert state.data == 1
       assert Map.get(state.tx_version, tx) == 1
@@ -95,7 +95,7 @@ defmodule StmAgent.StateTest do
       tx = StmAgent.Transaction.Id.new()
 
       assert {:abort, _state} =
-               StmAgent.State.get_and_update(state, fn _v -> raise StmAgent.AbortError end, tx)
+               StmAgent.State.get_and_update(state, tx, fn _v -> raise StmAgent.AbortError end)
     end
   end
 
@@ -187,7 +187,7 @@ defmodule StmAgent.StateTest do
       state = StmAgent.State.new(1)
       tx = StmAgent.Transaction.Id.new()
 
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx)
+      {:ok, state} = StmAgent.State.update(state, tx, fn v -> v + 10 end)
       {:ok, state} = StmAgent.State.verify(state, tx)
 
       assert tx == state.tx_verifying
@@ -197,7 +197,7 @@ defmodule StmAgent.StateTest do
       state = StmAgent.State.new(1)
       tx = StmAgent.Transaction.Id.new()
 
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx)
+      {:ok, state} = StmAgent.State.update(state, tx, fn v -> v + 10 end)
       {:ok, state} = StmAgent.State.verify(state, tx)
       {:ok, state} = StmAgent.State.verify(state, tx)
 
@@ -218,8 +218,8 @@ defmodule StmAgent.StateTest do
       tx1 = StmAgent.Transaction.Id.new()
       tx2 = StmAgent.Transaction.Id.new()
 
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx1)
-      {:ok, 2, state} = StmAgent.State.get(state, fn v -> v + 1 end, tx2)
+      {:ok, state} = StmAgent.State.update(state, tx1, fn v -> v + 10 end)
+      {:ok, 2, state} = StmAgent.State.get(state, tx2, fn v -> v + 1 end)
       {:ok, state} = StmAgent.State.verify(state, tx1)
 
       assert :abort = StmAgent.State.verify(state, tx2)
@@ -230,8 +230,8 @@ defmodule StmAgent.StateTest do
       tx1 = StmAgent.Transaction.Id.new()
       tx2 = StmAgent.Transaction.Id.new()
 
-      {:ok, 11, state} = StmAgent.State.get(state, fn v -> v + 10 end, tx1)
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 1 end, tx2)
+      {:ok, 11, state} = StmAgent.State.get(state, tx1, fn v -> v + 10 end)
+      {:ok, state} = StmAgent.State.update(state, tx2, fn v -> v + 1 end)
       {:ok, state} = StmAgent.State.verify(state, tx1)
 
       assert :abort = StmAgent.State.verify(state, tx2)
@@ -242,8 +242,8 @@ defmodule StmAgent.StateTest do
       tx1 = StmAgent.Transaction.Id.new()
       tx2 = StmAgent.Transaction.Id.new()
 
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx1)
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 1 end, tx2)
+      {:ok, state} = StmAgent.State.update(state, tx1, fn v -> v + 10 end)
+      {:ok, state} = StmAgent.State.update(state, tx2, fn v -> v + 1 end)
       {:ok, state} = StmAgent.State.verify(state, tx1)
       {:ok, state} = StmAgent.State.commit(state, tx1)
 
@@ -256,7 +256,7 @@ defmodule StmAgent.StateTest do
       state = StmAgent.State.new(1)
       tx = StmAgent.Transaction.Id.new()
 
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx)
+      {:ok, state} = StmAgent.State.update(state, tx, fn v -> v + 10 end)
       {:ok, state} = StmAgent.State.verify(state, tx)
       state = StmAgent.State.abort(state, tx)
 
@@ -272,8 +272,8 @@ defmodule StmAgent.StateTest do
       tx1 = StmAgent.Transaction.Id.new()
       tx2 = StmAgent.Transaction.Id.new()
 
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx1)
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx2)
+      {:ok, state} = StmAgent.State.update(state, tx1, fn v -> v + 10 end)
+      {:ok, state} = StmAgent.State.update(state, tx2, fn v -> v + 10 end)
       state = StmAgent.State.abort(state, tx1)
 
       assert Map.has_key?(state.tx_data, tx2)
@@ -284,7 +284,7 @@ defmodule StmAgent.StateTest do
       state = StmAgent.State.new(1)
       tx = StmAgent.Transaction.Id.new()
 
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx)
+      {:ok, state} = StmAgent.State.update(state, tx, fn v -> v + 10 end)
       state = StmAgent.State.abort(state, tx)
 
       assert 1 = state.version
@@ -299,8 +299,8 @@ defmodule StmAgent.StateTest do
       tx1 = StmAgent.Transaction.Id.new()
       tx2 = StmAgent.Transaction.Id.new()
 
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx1)
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx2)
+      {:ok, state} = StmAgent.State.update(state, tx1, fn v -> v + 10 end)
+      {:ok, state} = StmAgent.State.update(state, tx2, fn v -> v + 10 end)
       {:ok, state} = StmAgent.State.verify(state, tx2)
       state = StmAgent.State.abort(state, tx1)
 
@@ -319,7 +319,7 @@ defmodule StmAgent.StateTest do
       state = StmAgent.State.new(1)
       tx = StmAgent.Transaction.Id.new()
 
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx)
+      {:ok, state} = StmAgent.State.update(state, tx, fn v -> v + 10 end)
       {:ok, state} = StmAgent.State.verify(state, tx)
       {:ok, state} = StmAgent.State.commit(state, tx)
 
@@ -334,8 +334,8 @@ defmodule StmAgent.StateTest do
       tx1 = StmAgent.Transaction.Id.new()
       tx2 = StmAgent.Transaction.Id.new()
 
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx1)
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 5 end, tx2)
+      {:ok, state} = StmAgent.State.update(state, tx1, fn v -> v + 10 end)
+      {:ok, state} = StmAgent.State.update(state, tx2, fn v -> v + 5 end)
       {:ok, state} = StmAgent.State.verify(state, tx1)
       {:ok, state} = StmAgent.State.commit(state, tx1)
 
@@ -347,7 +347,7 @@ defmodule StmAgent.StateTest do
       state = StmAgent.State.new(1)
       tx = StmAgent.Transaction.Id.new()
 
-      {:ok, 11, state} = StmAgent.State.get(state, fn v -> v + 10 end, tx)
+      {:ok, 11, state} = StmAgent.State.get(state, tx, fn v -> v + 10 end)
       {:ok, state} = StmAgent.State.verify(state, tx)
       {:ok, state} = StmAgent.State.commit(state, tx)
 
@@ -368,7 +368,7 @@ defmodule StmAgent.StateTest do
       state = StmAgent.State.new(1)
       tx = StmAgent.Transaction.Id.new()
 
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx)
+      {:ok, state} = StmAgent.State.update(state, tx, fn v -> v + 10 end)
 
       assert :error = StmAgent.State.commit(state, tx)
     end
@@ -378,8 +378,8 @@ defmodule StmAgent.StateTest do
       tx1 = StmAgent.Transaction.Id.new()
       tx2 = StmAgent.Transaction.Id.new()
 
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 10 end, tx1)
-      {:ok, state} = StmAgent.State.update(state, fn v -> v + 5 end, tx2)
+      {:ok, state} = StmAgent.State.update(state, tx1, fn v -> v + 10 end)
+      {:ok, state} = StmAgent.State.update(state, tx2, fn v -> v + 5 end)
       {:ok, state} = StmAgent.State.verify(state, tx1)
 
       assert :error = StmAgent.State.commit(state, tx2)

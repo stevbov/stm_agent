@@ -13,7 +13,7 @@ defmodule StmAgent.State do
     }
   end
 
-  def get(state, fun, tx) do
+  def get(state, tx, fun) do
     case access(state, tx) do
       {:ok, state} ->
         try do
@@ -30,7 +30,7 @@ defmodule StmAgent.State do
     end
   end
 
-  def update(state, fun, tx) do
+  def update(state, tx, fun) do
     case access(state, tx) do
       {:ok, state} ->
         try do
@@ -47,7 +47,7 @@ defmodule StmAgent.State do
     end
   end
 
-  def get_and_update(state, fun, tx) do
+  def get_and_update(state, tx, fun) do
     case access(state, tx) do
       {:ok, state} ->
         try do

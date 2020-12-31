@@ -18,50 +18,50 @@ defmodule StmAgentTest do
 
   describe "get" do
     test "basic", context do
-      assert {:ok, 2} = StmAgent.get(context.agent, fn v -> v + 1 end, context.tx)
+      assert {:ok, 2} = StmAgent.get(context.agent, context.tx, fn v -> v + 1 end)
     end
   end
 
   describe "update" do
     test "basic", context do
-      :ok = StmAgent.update(context.agent, fn v -> v + 1 end, context.tx)
-      :ok = StmAgent.update(context.agent, fn v -> v + 1 end, context.tx)
+      :ok = StmAgent.update(context.agent, context.tx, fn v -> v + 1 end)
+      :ok = StmAgent.update(context.agent, context.tx, fn v -> v + 1 end)
 
-      assert {:ok, 3} = StmAgent.get(context.agent, fn v -> v end, context.tx)
+      assert {:ok, 3} = StmAgent.get(context.agent, context.tx, fn v -> v end)
     end
   end
 
   describe "cast" do
     test "basic", context do
-      :ok = StmAgent.cast(context.agent, fn v -> v + 1 end, context.tx)
-      :ok = StmAgent.cast(context.agent, fn v -> v + 1 end, context.tx)
+      :ok = StmAgent.cast(context.agent, context.tx, fn v -> v + 1 end)
+      :ok = StmAgent.cast(context.agent, context.tx, fn v -> v + 1 end)
 
-      assert {:ok, 3} = StmAgent.get(context.agent, fn v -> v end, context.tx)
+      assert {:ok, 3} = StmAgent.get(context.agent, context.tx, fn v -> v end)
     end
 
     test "aborted", context do
-      :ok = StmAgent.update(context.agent, fn v -> v + 1 end, context.tx2)
+      :ok = StmAgent.update(context.agent, context.tx2, fn v -> v + 1 end)
       :ok = StmAgent.verify(context.agent, context.tx2)
 
-      :ok = StmAgent.cast(context.agent, fn v -> v + 1 end, context.tx)
+      :ok = StmAgent.cast(context.agent, context.tx, fn v -> v + 1 end)
       :ok = StmAgent.abort(context.agent, context.tx2)
 
-      assert {:ok, 1} = StmAgent.get(context.agent, fn v -> v end, context.tx)
+      assert {:ok, 1} = StmAgent.get(context.agent, context.tx, fn v -> v end)
     end
   end
 
   describe "get_and_update" do
     test "basic", context do
-      {:ok, 3} = StmAgent.get_and_update(context.agent, fn v -> {v + 2, v + 1} end, context.tx)
-      {:ok, 4} = StmAgent.get_and_update(context.agent, fn v -> {v + 2, v + 1} end, context.tx)
+      {:ok, 3} = StmAgent.get_and_update(context.agent, context.tx, fn v -> {v + 2, v + 1} end)
+      {:ok, 4} = StmAgent.get_and_update(context.agent, context.tx, fn v -> {v + 2, v + 1} end)
 
-      assert {:ok, 3} = StmAgent.get(context.agent, fn v -> v end, context.tx)
+      assert {:ok, 3} = StmAgent.get(context.agent, context.tx, fn v -> v end)
     end
   end
 
   describe "verify" do
     test "basic", context do
-      :ok = StmAgent.update(context.agent, fn v -> v + 1 end, context.tx)
+      :ok = StmAgent.update(context.agent, context.tx, fn v -> v + 1 end)
 
       assert :ok = StmAgent.verify(context.agent, context.tx)
     end
@@ -69,21 +69,21 @@ defmodule StmAgentTest do
 
   describe "commit" do
     test "basic", context do
-      :ok = StmAgent.update(context.agent, fn v -> v + 1 end, context.tx)
+      :ok = StmAgent.update(context.agent, context.tx, fn v -> v + 1 end)
       :ok = StmAgent.verify(context.agent, context.tx)
 
       assert :ok = StmAgent.commit(context.agent, context.tx)
-      assert {:ok, 2} = StmAgent.get(context.agent, fn v -> v end, context.tx2)
+      assert {:ok, 2} = StmAgent.get(context.agent, context.tx2, fn v -> v end)
     end
   end
 
   describe "abort" do
     test "basic", context do
-      :ok = StmAgent.update(context.agent, fn v -> v + 1 end, context.tx)
+      :ok = StmAgent.update(context.agent, context.tx, fn v -> v + 1 end)
       :ok = StmAgent.verify(context.agent, context.tx)
 
       assert :ok = StmAgent.abort(context.agent, context.tx)
-      assert {:ok, 1} = StmAgent.get(context.agent, fn v -> v end, context.tx2)
+      assert {:ok, 1} = StmAgent.get(context.agent, context.tx2, fn v -> v end)
     end
   end
 
@@ -100,7 +100,7 @@ defmodule StmAgentTest do
     end
 
     test "after verifying transaction commits, retries dirty_update", context do
-      :ok = StmAgent.update(context.agent, fn v -> v + 1 end, context.tx)
+      :ok = StmAgent.update(context.agent, context.tx, fn v -> v + 1 end)
       :ok = StmAgent.verify(context.agent, context.tx)
 
       task =
@@ -117,7 +117,7 @@ defmodule StmAgentTest do
     end
 
     test "after verifying transaction aborts, retries dirty_update", context do
-      :ok = StmAgent.update(context.agent, fn v -> v + 1 end, context.tx)
+      :ok = StmAgent.update(context.agent, context.tx, fn v -> v + 1 end)
       :ok = StmAgent.verify(context.agent, context.tx)
 
       task =
@@ -134,7 +134,7 @@ defmodule StmAgentTest do
     end
 
     test "multiple retries", context do
-      :ok = StmAgent.update(context.agent, fn v -> v + 1 end, context.tx)
+      :ok = StmAgent.update(context.agent, context.tx, fn v -> v + 1 end)
       :ok = StmAgent.verify(context.agent, context.tx)
 
       task =
@@ -164,7 +164,7 @@ defmodule StmAgentTest do
     end
 
     test "multiple retries", context do
-      :ok = StmAgent.update(context.agent, fn v -> v + 1 end, context.tx)
+      :ok = StmAgent.update(context.agent, context.tx, fn v -> v + 1 end)
       :ok = StmAgent.verify(context.agent, context.tx)
 
       task =
