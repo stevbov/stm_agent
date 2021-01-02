@@ -186,4 +186,18 @@ defmodule StmAgentTest do
       assert 10 = StmAgent.dirty_get(context.agent, fn v -> v end)
     end
   end
+
+  describe "callbacks" do
+    test "on_abort properly set", context do
+      :ok = StmAgent.on_abort(context.agent, context.tx, fn _v -> :ok end)
+      state = :sys.get_state(context.agent)
+      assert 1 == Enum.count(Map.get(state.tx_on_abort, context.tx))
+    end
+
+    test "on_commit properly set", context do
+      :ok = StmAgent.on_commit(context.agent, context.tx, fn _v -> :ok end)
+      state = :sys.get_state(context.agent)
+      assert 1 == Enum.count(Map.get(state.tx_on_commit, context.tx))
+    end
+  end
 end

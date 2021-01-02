@@ -385,4 +385,115 @@ defmodule StmAgent.StateTest do
       assert :error = StmAgent.State.commit(state, tx2)
     end
   end
+
+  test "on_commit stores function" do
+    state = StmAgent.State.new(1)
+    tx = StmAgent.Transaction.Id.new()
+
+    state = StmAgent.State.on_commit(state, tx, fn _v -> :ok end)
+    assert 1 == Enum.count(Map.get(state.tx_on_commit, tx))
+
+    state = StmAgent.State.on_commit(state, tx, fn _v -> :ok end)
+    assert 2 == Enum.count(Map.get(state.tx_on_commit, tx))
+  end
+
+  test "on_abort stores function" do
+    state = StmAgent.State.new(1)
+    tx = StmAgent.Transaction.Id.new()
+
+    state = StmAgent.State.on_abort(state, tx, fn _v -> :ok end)
+    assert 1 == Enum.count(Map.get(state.tx_on_abort, tx))
+
+    state = StmAgent.State.on_abort(state, tx, fn _v -> :ok end)
+    assert 2 == Enum.count(Map.get(state.tx_on_abort, tx))
+  end
+
+  describe "callbacks" do
+    setup [:setup_callbacks]
+
+    test "commit", context do
+      state = context.state
+      {:ok, state} = StmAgent.State.verify(state, context.tx1)
+      {:ok, state} = StmAgent.State.commit(state, context.tx1)
+
+      assert 1 == Agent.get(context.commit_counter, fn v -> v end)
+      assert 0 == Agent.get(context.abort_counter, fn v -> v end)
+      assert 1 == Enum.count(state.tx_on_commit)
+      assert 1 == Enum.count(state.tx_on_abort)
+
+      {:ok, state} = StmAgent.State.verify(state, context.tx2)
+      {:ok, state} = StmAgent.State.commit(state, context.tx2)
+
+      assert 15 == Agent.get(context.commit_counter, fn v -> v end)
+      assert 0 == Agent.get(context.abort_counter, fn v -> v end)
+      assert Enum.empty?(state.tx_on_commit)
+      assert Enum.empty?(state.tx_on_abort)
+    end
+
+    test "abort", context do
+      state = context.state
+
+      state = StmAgent.State.abort(state, context.tx1)
+
+      assert 0 == Agent.get(context.commit_counter, fn v -> v end)
+      assert 5 == Agent.get(context.abort_counter, fn v -> v end)
+      assert 1 == Enum.count(state.tx_on_commit)
+      assert 1 == Enum.count(state.tx_on_abort)
+
+      state = StmAgent.State.abort(state, context.tx2)
+
+      assert 0 == Agent.get(context.commit_counter, fn v -> v end)
+      assert 25 == Agent.get(context.abort_counter, fn v -> v end)
+      assert Enum.empty?(state.tx_on_commit)
+      assert Enum.empty?(state.tx_on_abort)
+    end
+  end
+
+  defp setup_callbacks(_context) do
+    state = StmAgent.State.new(1)
+
+    {:ok, abort_counter} = Agent.start_link(fn -> 0 end)
+    {:ok, commit_counter} = Agent.start_link(fn -> 0 end)
+
+    tx1 = StmAgent.Transaction.Id.new()
+    tx2 = StmAgent.Transaction.Id.new()
+
+    state =
+      StmAgent.State.on_commit(state, tx1, fn _v ->
+        Agent.update(commit_counter, fn v -> v + 1 end)
+      end)
+
+    state =
+      StmAgent.State.on_commit(state, tx2, fn _v ->
+        Agent.update(commit_counter, fn v -> v + 3 end)
+      end)
+
+    state =
+      StmAgent.State.on_commit(state, tx2, fn _v ->
+        Agent.update(commit_counter, fn v -> v + 11 end)
+      end)
+
+    state =
+      StmAgent.State.on_abort(state, tx1, fn _v ->
+        Agent.update(abort_counter, fn v -> v + 5 end)
+      end)
+
+    state =
+      StmAgent.State.on_abort(state, tx2, fn _v ->
+        Agent.update(abort_counter, fn v -> v + 7 end)
+      end)
+
+    state =
+      StmAgent.State.on_abort(state, tx2, fn _v ->
+        Agent.update(abort_counter, fn v -> v + 13 end)
+      end)
+
+    [
+      state: state,
+      tx1: tx1,
+      tx2: tx2,
+      abort_counter: abort_counter,
+      commit_counter: commit_counter
+    ]
+  end
 end

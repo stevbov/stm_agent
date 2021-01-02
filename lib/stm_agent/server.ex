@@ -63,6 +63,14 @@ defmodule StmAgent.Server do
     {:reply, :ok, new_state}
   end
 
+  def handle_call({:on_abort, tx, fun}, _from, state) do
+    {:reply, :ok, StmAgent.State.on_abort(state, tx, fun)}
+  end
+
+  def handle_call({:on_commit, tx, fun}, _from, state) do
+    {:reply, :ok, StmAgent.State.on_commit(state, tx, fun)}
+  end
+
   def handle_call({:dirty_get, fun}, _from, state) do
     reply = StmAgent.State.dirty_get(state, fun)
     {:reply, reply, state}

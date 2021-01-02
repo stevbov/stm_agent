@@ -112,6 +112,14 @@ defmodule StmAgent do
     GenServer.call(pid, {:abort, tx})
   end
 
+  def on_commit(pid, tx, fun) do
+    GenServer.call(pid, {:on_commit, tx, fun})
+  end
+
+  def on_abort(pid, tx, fun) do
+    GenServer.call(pid, {:on_abort, tx, fun})
+  end
+
   def dirty_get(pid, fun) do
     GenServer.call(pid, {:dirty_get, fun})
   end

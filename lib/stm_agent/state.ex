@@ -5,6 +5,8 @@ defmodule StmAgent.State do
             tx_data: %{},
             tx_version: %{},
             tx_verifying: nil,
+            tx_on_commit: %{},
+            tx_on_abort: %{},
             retry_queue: []
 
   def new(data) do
@@ -85,6 +87,9 @@ defmodule StmAgent.State do
   def commit(%{tx_verifying: tx} = state, tx) do
     new_version = if Map.has_key?(state.tx_data, tx), do: state.version + 1, else: state.version
 
+    Map.get(state.tx_on_commit, tx, [])
+    |> Enum.each(fn fun -> fun.(state.data) end)
+
     {:ok,
      %{
        state
@@ -92,6 +97,8 @@ defmodule StmAgent.State do
          version: new_version,
          tx_data: Map.delete(state.tx_data, tx),
          tx_version: Map.delete(state.tx_version, tx),
+         tx_on_abort: Map.delete(state.tx_on_abort, tx),
+         tx_on_commit: Map.delete(state.tx_on_commit, tx),
          tx_verifying: nil
      }}
   end
@@ -103,12 +110,27 @@ defmodule StmAgent.State do
   def abort(state, tx) do
     new_tx_verifying = if state.tx_verifying == tx, do: nil, else: state.tx_verifying
 
+    Map.get(state.tx_on_abort, tx, [])
+    |> Enum.each(fn fun -> fun.(state.data) end)
+
     %{
       state
       | tx_data: Map.delete(state.tx_data, tx),
         tx_version: Map.delete(state.tx_version, tx),
+        tx_on_abort: Map.delete(state.tx_on_abort, tx),
+        tx_on_commit: Map.delete(state.tx_on_commit, tx),
         tx_verifying: new_tx_verifying
     }
+  end
+
+  def on_commit(state, tx, fun) do
+    on_commit = Map.get(state.tx_on_commit, tx, [])
+    %{state | tx_on_commit: Map.put(state.tx_on_commit, tx, [fun | on_commit])}
+  end
+
+  def on_abort(state, tx, fun) do
+    on_abort = Map.get(state.tx_on_abort, tx, [])
+    %{state | tx_on_abort: Map.put(state.tx_on_abort, tx, [fun | on_abort])}
   end
 
   def dirty_get(state, fun) do
