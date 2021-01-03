@@ -231,6 +231,38 @@ defmodule StmAgent.TransactionTest do
   end
 
   describe "callbacks" do
+    test "StmAgent on_abort called when no update/get/etc called", context do
+      {:ok, abort_counter} = Agent.start_link(fn -> 0 end)
+
+      StmAgent.Transaction.transaction(
+        fn tx ->
+          StmAgent.on_abort(context.agent, tx, fn _v ->
+            Agent.update(abort_counter, fn v -> v + 1 end)
+          end)
+
+          raise StmAgent.AbortError
+        end,
+        1
+      )
+
+      assert 1 = Agent.get(abort_counter, fn v -> v end)
+    end
+
+    test "StmAgent on_commit called when no update/get/etc called", context do
+      {:ok, commit_counter} = Agent.start_link(fn -> 0 end)
+
+      StmAgent.Transaction.transaction(
+        fn tx ->
+          StmAgent.on_commit(context.agent, tx, fn _v ->
+            Agent.update(commit_counter, fn v -> v + 1 end)
+          end)
+        end,
+        1
+      )
+
+      assert 1 = Agent.get(commit_counter, fn v -> v end)
+    end
+
     test "committed transaction calls on_verify, on_commit", context do
       {:ok, verify_counter} = Agent.start_link(fn -> 0 end)
       {:ok, abort_counter} = Agent.start_link(fn -> 0 end)

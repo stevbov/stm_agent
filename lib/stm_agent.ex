@@ -113,10 +113,12 @@ defmodule StmAgent do
   end
 
   def on_commit(pid, tx, fun) do
+    StmAgent.TransactionMonitor.accessed(tx, pid)
     GenServer.call(pid, {:on_commit, tx, fun})
   end
 
   def on_abort(pid, tx, fun) do
+    StmAgent.TransactionMonitor.accessed(tx, pid)
     GenServer.call(pid, {:on_abort, tx, fun})
   end
 
