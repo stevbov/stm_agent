@@ -86,14 +86,15 @@ defmodule StmAgent.State do
 
   def commit(%{tx_verifying: tx} = state, tx) do
     new_version = if Map.has_key?(state.tx_data, tx), do: state.version + 1, else: state.version
+    new_data = Map.get(state.tx_data, tx, state.data)
 
     Map.get(state.tx_on_commit, tx, [])
-    |> Enum.each(fn fun -> fun.(state.data) end)
+    |> Enum.each(fn fun -> fun.(new_data) end)
 
     {:ok,
      %{
        state
-       | data: Map.get(state.tx_data, tx, state.data),
+       | data: new_data,
          version: new_version,
          tx_data: Map.delete(state.tx_data, tx),
          tx_version: Map.delete(state.tx_version, tx),

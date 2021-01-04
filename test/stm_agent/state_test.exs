@@ -413,18 +413,22 @@ defmodule StmAgent.StateTest do
 
     test "commit", context do
       state = context.state
+      {:ok, state} = StmAgent.State.update(state, context.tx1, fn v -> v + 1 end)
       {:ok, state} = StmAgent.State.verify(state, context.tx1)
       {:ok, state} = StmAgent.State.commit(state, context.tx1)
 
       assert 1 == Agent.get(context.commit_counter, fn v -> v end)
+      assert 2 == Agent.get(context.callback_value, fn v -> v end)
       assert 0 == Agent.get(context.abort_counter, fn v -> v end)
       assert 1 == Enum.count(state.tx_on_commit)
       assert 1 == Enum.count(state.tx_on_abort)
 
+      {:ok, state} = StmAgent.State.update(state, context.tx2, fn v -> v + 1 end)
       {:ok, state} = StmAgent.State.verify(state, context.tx2)
       {:ok, state} = StmAgent.State.commit(state, context.tx2)
 
       assert 15 == Agent.get(context.commit_counter, fn v -> v end)
+      assert 3 == Agent.get(context.callback_value, fn v -> v end)
       assert 0 == Agent.get(context.abort_counter, fn v -> v end)
       assert Enum.empty?(state.tx_on_commit)
       assert Enum.empty?(state.tx_on_abort)
@@ -433,9 +437,11 @@ defmodule StmAgent.StateTest do
     test "abort", context do
       state = context.state
 
+      {:ok, state} = StmAgent.State.update(state, context.tx1, fn v -> v + 1 end)
       state = StmAgent.State.abort(state, context.tx1)
 
       assert 0 == Agent.get(context.commit_counter, fn v -> v end)
+      assert 1 == Agent.get(context.callback_value, fn v -> v end)
       assert 5 == Agent.get(context.abort_counter, fn v -> v end)
       assert 1 == Enum.count(state.tx_on_commit)
       assert 1 == Enum.count(state.tx_on_abort)
@@ -443,6 +449,7 @@ defmodule StmAgent.StateTest do
       state = StmAgent.State.abort(state, context.tx2)
 
       assert 0 == Agent.get(context.commit_counter, fn v -> v end)
+      assert 1 == Agent.get(context.callback_value, fn v -> v end)
       assert 25 == Agent.get(context.abort_counter, fn v -> v end)
       assert Enum.empty?(state.tx_on_commit)
       assert Enum.empty?(state.tx_on_abort)
@@ -455,37 +462,45 @@ defmodule StmAgent.StateTest do
     {:ok, abort_counter} = Agent.start_link(fn -> 0 end)
     {:ok, commit_counter} = Agent.start_link(fn -> 0 end)
 
+    {:ok, callback_value} = Agent.start_link(fn -> 0 end)
+
     tx1 = StmAgent.Transaction.Id.new()
     tx2 = StmAgent.Transaction.Id.new()
 
     state =
-      StmAgent.State.on_commit(state, tx1, fn _v ->
+      StmAgent.State.on_commit(state, tx1, fn agent_v ->
         Agent.update(commit_counter, fn v -> v + 1 end)
+        Agent.update(callback_value, fn _v -> agent_v end)
       end)
 
     state =
-      StmAgent.State.on_commit(state, tx2, fn _v ->
+      StmAgent.State.on_commit(state, tx2, fn agent_v ->
         Agent.update(commit_counter, fn v -> v + 3 end)
+        Agent.update(callback_value, fn _v -> agent_v end)
       end)
 
     state =
-      StmAgent.State.on_commit(state, tx2, fn _v ->
+      StmAgent.State.on_commit(state, tx2, fn agent_v ->
         Agent.update(commit_counter, fn v -> v + 11 end)
+        Agent.update(callback_value, fn _v -> agent_v end)
       end)
 
     state =
-      StmAgent.State.on_abort(state, tx1, fn _v ->
+      StmAgent.State.on_abort(state, tx1, fn agent_v ->
         Agent.update(abort_counter, fn v -> v + 5 end)
+        Agent.update(callback_value, fn _v -> agent_v end)
       end)
 
     state =
-      StmAgent.State.on_abort(state, tx2, fn _v ->
+      StmAgent.State.on_abort(state, tx2, fn agent_v ->
         Agent.update(abort_counter, fn v -> v + 7 end)
+        Agent.update(callback_value, fn _v -> agent_v end)
       end)
 
     state =
-      StmAgent.State.on_abort(state, tx2, fn _v ->
+      StmAgent.State.on_abort(state, tx2, fn agent_v ->
         Agent.update(abort_counter, fn v -> v + 13 end)
+        Agent.update(callback_value, fn _v -> agent_v end)
       end)
 
     [
@@ -493,7 +508,8 @@ defmodule StmAgent.StateTest do
       tx1: tx1,
       tx2: tx2,
       abort_counter: abort_counter,
-      commit_counter: commit_counter
+      commit_counter: commit_counter,
+      callback_value: callback_value
     ]
   end
 end
