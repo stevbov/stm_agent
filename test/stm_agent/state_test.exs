@@ -456,6 +456,49 @@ defmodule StmAgent.StateTest do
     end
   end
 
+  describe "callback ordering" do
+    test "on_commit called in order added" do
+      {:ok, callback_list} = Agent.start_link(fn -> [] end)
+      tx = StmAgent.Transaction.Id.new()
+      state = StmAgent.State.new(1)
+
+      state =
+        StmAgent.State.on_commit(state, tx, fn _v ->
+          Agent.update(callback_list, fn list -> [:first | list] end)
+        end)
+
+      state =
+        StmAgent.State.on_commit(state, tx, fn _v ->
+          Agent.update(callback_list, fn list -> [:second | list] end)
+        end)
+
+      {:ok, state} = StmAgent.State.verify(state, tx)
+      StmAgent.State.commit(state, tx)
+
+      assert [:second, :first] == Agent.get(callback_list, fn list -> list end)
+    end
+
+    test "on_abort called in order added" do
+      {:ok, callback_list} = Agent.start_link(fn -> [] end)
+      tx = StmAgent.Transaction.Id.new()
+      state = StmAgent.State.new(1)
+
+      state =
+        StmAgent.State.on_abort(state, tx, fn _v ->
+          Agent.update(callback_list, fn list -> [:first | list] end)
+        end)
+
+      state =
+        StmAgent.State.on_abort(state, tx, fn _v ->
+          Agent.update(callback_list, fn list -> [:second | list] end)
+        end)
+
+      StmAgent.State.abort(state, tx)
+
+      assert [:second, :first] == Agent.get(callback_list, fn list -> list end)
+    end
+  end
+
   defp setup_callbacks(_context) do
     state = StmAgent.State.new(1)
 

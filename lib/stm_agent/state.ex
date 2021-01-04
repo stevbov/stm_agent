@@ -89,6 +89,7 @@ defmodule StmAgent.State do
     new_data = Map.get(state.tx_data, tx, state.data)
 
     Map.get(state.tx_on_commit, tx, [])
+    |> Enum.reverse()
     |> Enum.each(fn fun -> fun.(new_data) end)
 
     {:ok,
@@ -112,6 +113,7 @@ defmodule StmAgent.State do
     new_tx_verifying = if state.tx_verifying == tx, do: nil, else: state.tx_verifying
 
     Map.get(state.tx_on_abort, tx, [])
+    |> Enum.reverse()
     |> Enum.each(fn fun -> fun.(state.data) end)
 
     %{

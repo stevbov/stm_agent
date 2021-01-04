@@ -442,6 +442,59 @@ defmodule StmAgent.TransactionTest do
       assert 0 = Agent.get(verify_counter, fn v -> v end)
       assert 1 = Agent.get(abort_counter, fn v -> v end)
     end
+
+    test "on_verify called in order added" do
+      {:ok, callback_list} = Agent.start_link(fn -> [] end)
+
+      StmAgent.Transaction.transaction(fn tx ->
+        StmAgent.Transaction.on_verify(tx, fn ->
+          Agent.update(callback_list, fn list -> [:first | list] end)
+        end)
+
+        StmAgent.Transaction.on_verify(tx, fn ->
+          Agent.update(callback_list, fn list -> [:second | list] end)
+        end)
+      end)
+
+      assert [:second, :first] == Agent.get(callback_list, fn list -> list end)
+    end
+
+    test "on_abort called in order added" do
+      {:ok, callback_list} = Agent.start_link(fn -> [] end)
+
+      StmAgent.Transaction.transaction(
+        fn tx ->
+          StmAgent.Transaction.on_abort(tx, fn ->
+            Agent.update(callback_list, fn list -> [:first | list] end)
+          end)
+
+          StmAgent.Transaction.on_abort(tx, fn ->
+            Agent.update(callback_list, fn list -> [:second | list] end)
+          end)
+
+          raise StmAgent.AbortError
+        end,
+        1
+      )
+
+      assert [:second, :first] == Agent.get(callback_list, fn list -> list end)
+    end
+
+    test "on_commit called in order added" do
+      {:ok, callback_list} = Agent.start_link(fn -> [] end)
+
+      StmAgent.Transaction.transaction(fn tx ->
+        StmAgent.Transaction.on_commit(tx, fn ->
+          Agent.update(callback_list, fn list -> [:first | list] end)
+        end)
+
+        StmAgent.Transaction.on_commit(tx, fn ->
+          Agent.update(callback_list, fn list -> [:second | list] end)
+        end)
+      end)
+
+      assert [:second, :first] == Agent.get(callback_list, fn list -> list end)
+    end
   end
 
   describe "retry" do

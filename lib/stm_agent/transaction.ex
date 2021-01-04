@@ -133,7 +133,10 @@ defmodule StmAgent.TransactionMonitor do
 
   def handle_call(:abort, _from, %{tx: tx, accessed_pids: accessed_pids, on_abort: on_abort}) do
     Enum.each(accessed_pids, fn pid -> :ok = StmAgent.abort(pid, tx) end)
-    Enum.each(on_abort, fn fun -> fun.() end)
+
+    on_abort
+    |> Enum.reverse()
+    |> Enum.each(fn fun -> fun.() end)
 
     {:reply, :ok, %TransactionMonitor{tx: tx}}
   end
@@ -151,12 +154,16 @@ defmodule StmAgent.TransactionMonitor do
     verify_ok = Enum.all?(verify_results, fn {result, _pid} -> result == :ok end)
 
     if verify_ok do
-      Enum.each(state.on_verify, fn fun -> fun.() end)
+      state.on_verify
+      |> Enum.reverse()
+      |> Enum.each(fn fun -> fun.() end)
 
       verify_results
       |> Enum.each(fn {_result, pid} -> :ok = StmAgent.commit(pid, state.tx) end)
 
-      Enum.each(state.on_commit, fn fun -> fun.() end)
+      state.on_commit
+      |> Enum.reverse()
+      |> Enum.each(fn fun -> fun.() end)
 
       {:reply, :ok, %TransactionMonitor{tx: state.tx}}
     else
@@ -164,7 +171,9 @@ defmodule StmAgent.TransactionMonitor do
       |> Enum.filter(fn {result, _pid} -> result != :error end)
       |> Enum.each(fn {_result, pid} -> :ok = StmAgent.abort(pid, state.tx) end)
 
-      Enum.each(state.on_abort, fn fun -> fun.() end)
+      state.on_abort
+      |> Enum.reverse()
+      |> Enum.each(fn fun -> fun.() end)
 
       {:reply, :aborted, %TransactionMonitor{tx: state.tx}}
     end
@@ -185,7 +194,9 @@ defmodule StmAgent.TransactionMonitor do
     accessed_pids
     |> Enum.each(fn pid -> :ok = StmAgent.abort(pid, tx) end)
 
-    Enum.each(on_abort, fn fun -> fun.() end)
+    on_abort
+    |> Enum.reverse()
+    |> Enum.each(fn fun -> fun.() end)
 
     :ok
   end
