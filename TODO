@@ -1,3 +1,2 @@
 - For StmAgent.Transaction.transaction, StmAgent.AbortError isn't handled in the right place - it should trigger retries
 - I'm not sure if the functions in StmAgent that returns :abort instead of raising AbortError is useful, so maybe change get to work like get!, update to work like update!, etc
-- Maybe tweak order of arguments: instead of pid, fun, tx make it pid, tx, fun
