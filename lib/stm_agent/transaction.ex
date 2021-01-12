@@ -9,9 +9,6 @@ defmodule StmAgent.Transaction do
 
     try do
       transaction(tx, fun, retries)
-    rescue
-      _ in StmAgent.AbortError ->
-        StmAgent.TransactionMonitor.abort(tx)
     after
       StmAgent.TransactionMonitor.stop(tx)
     end
@@ -43,20 +40,36 @@ defmodule StmAgent.Transaction do
   end
 
   defp transaction(tx, fun, retries) do
-    result = fun.(tx)
+    try do
+      result = fun.(tx)
 
-    case StmAgent.TransactionMonitor.commit(tx) do
-      :aborted when retries == :infinity ->
-        transaction(tx, fun, retries)
+      case StmAgent.TransactionMonitor.commit(tx) do
+        :aborted when retries == :infinity ->
+          transaction(tx, fun, retries)
 
-      :aborted when retries > 1 ->
-        transaction(tx, fun, retries - 1)
+        :aborted when retries > 1 ->
+          transaction(tx, fun, retries - 1)
 
-      :aborted ->
-        :aborted
+        :aborted ->
+          :aborted
 
-      :ok ->
-        {:ok, result}
+        :ok ->
+          {:ok, result}
+      end
+    rescue
+      _ in StmAgent.AbortError ->
+        StmAgent.TransactionMonitor.abort(tx)
+
+        cond do
+          retries > 1 ->
+            transaction(tx, fun, retries - 1)
+
+          retries == :infinity ->
+            transaction(tx, fun, retries)
+
+          true ->
+            :aborted
+        end
     end
   end
 

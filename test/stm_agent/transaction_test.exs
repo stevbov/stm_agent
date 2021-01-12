@@ -498,6 +498,20 @@ defmodule StmAgent.TransactionTest do
   end
 
   describe "retry" do
+    test "retries when raise StmAgent.AbortError" do
+      {:ok, counting_agent} = Agent.start_link(fn -> 0 end)
+
+      StmAgent.Transaction.transaction(
+        fn _tx ->
+          Agent.update(counting_agent, fn v -> v + 1 end)
+          raise StmAgent.AbortError
+        end,
+        5
+      )
+
+      assert 5 = Agent.get(counting_agent, fn v -> v end)
+    end
+
     test ":aborted when hits retry limit", context do
       {:ok, counting_agent} = Agent.start_link(fn -> 0 end)
       tx2 = StmAgent.Transaction.Id.new()
